@@ -40,19 +40,31 @@ export const useMetals = (apiKey: string, historyDays: number): MetalsState => {
     return findMissingRanges(coverage, historyStart, historyEnd);
   }, [coverage, historyStart, historyEnd]);
 
+  const newestHistoryDate = useMemo(() => {
+    return Object.keys(timeseries).sort().pop() ?? null;
+  }, [timeseries]);
+
   const countRequest = useCallback(() => {
     const month = monthKey();
     setUsage((prev) => ({ month, count: prev.month === month ? prev.count + 1 : 1 }));
   }, [setUsage]);
 
-  const syncHistory = useCallback(async () => {
-    if (!apiKey || historyInFlight.current || missingRanges.length === 0) {
+  // Yesterday's rates may not be published yet when first requested; retryUnpublished re-requests them,
+  // and is only passed from refresh() so the retry stays on the update interval rather than every page load
+  const syncHistory = useCallback(async (retryUnpublished: boolean = false) => {
+    let ranges = missingRanges;
+    if (retryUnpublished && ranges.length === 0 && newestHistoryDate && newestHistoryDate < historyEnd) {
+      const start = addDays(newestHistoryDate, 1);
+      ranges = [[start > historyStart ? start : historyStart, historyEnd]];
+    }
+
+    if (!apiKey || historyInFlight.current || ranges.length === 0) {
       return;
     }
 
     historyInFlight.current = true;
     try {
-      const chunks = missingRanges.flatMap(([start, end]) => splitRange(start, end, MAX_TIMESERIES_DAYS));
+      const chunks = ranges.flatMap(([start, end]) => splitRange(start, end, MAX_TIMESERIES_DAYS));
       for (const [start, end] of chunks) {
         const fetched = await fetchTimeseries(apiKey, start, end, countRequest);
         setTimeseries((prev) => pruneHistory({ ...prev, ...fetched }, todayKey()));
@@ -63,7 +75,7 @@ export const useMetals = (apiKey: string, historyDays: number): MetalsState => {
     } finally {
       historyInFlight.current = false;
     }
-  }, [apiKey, missingRanges, historyStart, historyEnd, countRequest, setTimeseries, setCoverage]);
+  }, [apiKey, missingRanges, newestHistoryDate, historyStart, historyEnd, countRequest, setTimeseries, setCoverage]);
 
   const refreshLatest = useCallback(async () => {
     if (!apiKey || latestInFlight.current) {
@@ -87,7 +99,7 @@ export const useMetals = (apiKey: string, historyDays: number): MetalsState => {
   }, [apiKey, countRequest, setLatest, setObserved]);
 
   const refresh = useCallback(async () => {
-    await Promise.all([refreshLatest(), syncHistory()]);
+    await Promise.all([refreshLatest(), syncHistory(true)]);
   }, [refreshLatest, syncHistory]);
 
   useEffect(() => {

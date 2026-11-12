@@ -23,7 +23,7 @@ The free metals.dev plan allows 100 requests per month, so the app keeps API usa
 - Daily history comes from the `timeseries` endpoint (30 days per request). Past days are cached permanently, so after the first load it costs about one request per day. The first load costs 1 request per 30 days of the selected window (3 for 90D, 13 for 1Y).
 - The footer shows how many requests this browser has made this month.
 
-If the `timeseries` endpoint doesn't return copper, copper's history is built from the `latest` snapshots the app records each day it's used.
+The `timeseries` endpoint doesn't return copper, so copper's history is built from the `latest` snapshots the app records each day it's used (per browser).
 
 ## Development
 

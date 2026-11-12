@@ -5,7 +5,7 @@ Tracks gold, silver, platinum, palladium, and copper prices using the [metals.de
 - **Desktop:** current price, 1D / 7D / 30D change, low and high (with dates) over the selected history window, position within that range, distance from the high, and a trend sparkline. Click a row for details.
 - **Mobile:** current price, 1D change with an up/down indicator, and a small trend sparkline. Tap a row for details.
 
-Precious metals are priced per troy ounce; copper is priced per pound.
+All metals, including copper, are priced per troy ounce.
 
 ## API key
 

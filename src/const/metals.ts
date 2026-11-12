@@ -1,8 +1,5 @@
 import { MetalId } from '../types/metal';
 
-const GRAMS_PER_TROY_OUNCE = 31.1034768;
-const GRAMS_PER_POUND = 453.59237;
-
 export interface MetalConfig {
   id: MetalId;
   name: string;
@@ -16,7 +13,7 @@ export const Metals: MetalConfig[] = [
   { id: 'silver', name: 'Silver', symbol: 'XAG', unit: 'oz t', troyOuncesPerUnit: 1 },
   { id: 'platinum', name: 'Platinum', symbol: 'XPT', unit: 'oz t', troyOuncesPerUnit: 1 },
   { id: 'palladium', name: 'Palladium', symbol: 'XPD', unit: 'oz t', troyOuncesPerUnit: 1 },
-  { id: 'copper', name: 'Copper', symbol: 'XCU', unit: 'lb', troyOuncesPerUnit: GRAMS_PER_POUND / GRAMS_PER_TROY_OUNCE },
+  { id: 'copper', name: 'Copper', symbol: 'XCU', unit: 'oz t', troyOuncesPerUnit: 1 },
 ];
 
 export interface HistoryWindow {

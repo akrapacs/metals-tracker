@@ -9,17 +9,14 @@ export type History = Record<string, PriceMap>;
 export interface LatestSnapshot {
   prices: PriceMap;
   timestamp: string;
-  fetchedAt: string;
 }
 
-export interface Coverage {
-  from: string;
-  through: string;
-}
-
-export interface RequestUsage {
-  month: string;
-  count: number;
+// Shape of data/prices.json, written by scripts/update-prices.mjs
+export interface PriceData {
+  generatedAt: string;
+  latest: LatestSnapshot | null;
+  observed: History;
+  timeseries: History;
 }
 
 export interface PricePoint {

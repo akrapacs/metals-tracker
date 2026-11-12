@@ -1,52 +1,8 @@
 import { Metals } from '../const/metals';
-import { Coverage, History, LatestSnapshot, MetalStats, PricePoint } from '../types/metal';
+import { History, LatestSnapshot, MetalStats, PricePoint } from '../types/metal';
 import { addDays } from './dates';
 
-const RETENTION_DAYS = 400;
 const LOOKBACK_TOLERANCE_DAYS = 3;
-
-const isDisjoint = (coverage: Coverage, start: string, end: string): boolean => {
-  return coverage.through < addDays(start, -1) || coverage.from > addDays(end, 1);
-};
-
-export const findMissingRanges = (coverage: Coverage | null, start: string, end: string): [string, string][] => {
-  if (end < start) {
-    return [];
-  }
-  if (!coverage || isDisjoint(coverage, start, end)) {
-    return [[start, end]];
-  }
-
-  const ranges: [string, string][] = [];
-  if (start < coverage.from) {
-    ranges.push([start, addDays(coverage.from, -1)]);
-  }
-  if (coverage.through < end) {
-    ranges.push([addDays(coverage.through, 1), end]);
-  }
-  return ranges;
-};
-
-export const extendCoverage = (coverage: Coverage | null, start: string, end: string): Coverage => {
-  if (!coverage || isDisjoint(coverage, start, end)) {
-    return { from: start, through: end };
-  }
-  return {
-    from: start < coverage.from ? start : coverage.from,
-    through: end > coverage.through ? end : coverage.through,
-  };
-};
-
-export const pruneHistory = (history: History, today: string): History => {
-  const cutoff = addDays(today, -RETENTION_DAYS);
-  const pruned: History = {};
-  Object.keys(history).forEach((date) => {
-    if (date >= cutoff) {
-      pruned[date] = history[date];
-    }
-  });
-  return pruned;
-};
 
 // Timeseries data wins; observed snapshots fill in metals the timeseries endpoint does not return (e.g. copper)
 export const mergeHistory = (observed: History, timeseries: History): History => {

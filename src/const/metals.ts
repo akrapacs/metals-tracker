@@ -29,5 +29,3 @@ export const HistoryWindows: HistoryWindow[] = [
 ];
 
 export const DefaultHistoryDays = 90;
-
-export const DefaultUpdateIntervalMinutes = '240';

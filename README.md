@@ -7,35 +7,38 @@ Tracks gold, silver, platinum, palladium, and copper prices using the [metals.de
 
 All metals, including copper, are priced per troy ounce.
 
-## API key
+## How prices get to the page
 
-The app calls metals.dev directly from the browser (the API supports CORS), so there is no server. The key can be provided two ways:
+The browser never talks to metals.dev and never sees the API key. Instead:
 
-1. **In the app (recommended):** on first visit, enter the key. It's saved in that browser's local storage only and never leaves the browser except in requests to metals.dev. You'll need to enter it once per device.
-2. **At build time:** add a repository secret named `METALS_API_KEY` (Settings > Secrets and variables > Actions). The workflow passes it in as `NEXT_PUBLIC_METALS_API_KEY`. Note that this embeds the key in the public JavaScript bundle, so anyone visiting the site could find it and use your quota.
+1. `.github/workflows/nextjs.yml` runs every 30 minutes. `scripts/update-prices.mjs` uses the `METALS_API_KEY` repository secret to fetch the latest prices, and merges them into a year of daily history.
+2. The result is saved as `prices.json` on the `data` branch. The branch is replaced with a single commit each run, since the file itself holds the history.
+3. The site is rebuilt with that file at `data/prices.json` and deployed to GitHub Pages. The page loads it and checks for a newer copy every 5 minutes while it's open.
 
-## Request quota
+### Request usage
 
-The free metals.dev plan allows 100 requests per month, so the app keeps API usage low:
+- Each run makes 1 `latest` request. Scheduled runs are skipped while the market is closed (Friday ~22:00 to Sunday ~22:00 UTC), so that's roughly 1,100 requests a month. That fits the Copper plan's 2,000.
+- Daily history comes from the `timeseries` endpoint (30 days per request). The first run backfills a year (13 requests); after that it's about 1 request a day.
+- Usage doesn't depend on how many people or devices open the site.
 
-- Current prices for all five metals come from a single `latest` request and are cached in local storage. Reloading the page doesn't make a request until the update interval (default 240 minutes) has passed.
-- Auto-refresh only runs while the tab is visible and pauses while the market is closed on weekends.
-- Daily history comes from the `timeseries` endpoint (30 days per request). Past days are cached permanently, so after the first load it costs about one request per day. The first load costs 1 request per 30 days of the selected window (3 for 90D, 13 for 1Y).
-- The footer shows how many requests this browser has made this month.
+To change how often it updates, edit the `cron` schedule in the workflow. GitHub may start scheduled runs late, and it pauses scheduled workflows in public repos after 60 days without repository activity (it emails a warning first; re-enable it from the Actions tab).
 
-The `timeseries` endpoint doesn't return copper, so copper's history is built from the `latest` snapshots the app records each day it's used (per browser).
+The `timeseries` endpoint doesn't return copper, so copper's history is built from the prices recorded on each run.
+
+## Setup
+
+1. Add a repository secret named `METALS_API_KEY` (Settings > Secrets and variables > Actions).
+2. Set Settings > Pages > Build and deployment > Source to **GitHub Actions**.
+3. Push to `main`, or run the workflow from the Actions tab.
 
 ## Development
 
 ```bash
 npm install
+METALS_API_KEY=your-key npm run update-prices   # writes public/data/prices.json (gitignored)
 npm run dev
 ```
 
-Open http://localhost:3000/metals-tracker.
+Open http://localhost:3000/metals-tracker. Each `update-prices` run uses 1 request, plus 13 the first time to backfill history.
 
-`npm run build` produces the static site in `out/`.
-
-## Deployment
-
-Pushing to `main` runs `.github/workflows/nextjs.yml`, which builds the static export and deploys it to GitHub Pages. In the repository settings, set Pages > Build and deployment > Source to **GitHub Actions**.
+`npm run build` produces the static site in `out/`. Don't run it while `npm run dev` is running; they share the `.next` folder.

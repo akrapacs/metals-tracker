@@ -1,29 +1,79 @@
-# Builds the static Next.js export and deploys it to GitHub Pages
-name: Deploy Next.js site to Pages
+# Fetches prices with the METALS_API_KEY secret, stores them on the `data` branch, and deploys the
+# static site to GitHub Pages with the prices file included. The browser never sees the API key.
+name: Update prices and deploy to Pages
 
 on:
   push:
     branches: ["main"]
 
+  # Every 30 minutes (~1,100 metals.dev requests/month); update-prices.mjs skips scheduled runs while the market is closed
+  schedule:
+    - cron: "7,37 * * * *"
+
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+# One run at a time so updates to the data branch never race. Queued runs are replaced by the newest one,
+# but an in-progress deployment is never cancelled.
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      updated: ${{ steps.update.outputs.updated }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Check out data branch
+        run: |
+          if git fetch --depth=1 origin data; then
+            git worktree add --detach data-branch FETCH_HEAD
+          else
+            git worktree add --orphan -b data data-branch
+          fi
+      - name: Update prices
+        id: update
+        run: node scripts/update-prices.mjs
+        env:
+          METALS_API_KEY: ${{ secrets.METALS_API_KEY }}
+          DATA_FILE: data-branch/prices.json
+          FORCE_UPDATE: ${{ github.event_name != 'schedule' }}
+      - name: Save prices to data branch
+        if: steps.update.outputs.updated == 'true'
+        working-directory: data-branch
+        # The file holds the full history, so the branch is replaced with a single commit each time instead of growing forever
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --quiet --orphan next
+          git add prices.json
+          git commit --quiet -m "Update prices"
+          git push --force origin HEAD:data
+
   build:
+    needs: update
+    # Code pushes still deploy (with the last saved prices) if the price update fails
+    if: ${{ !cancelled() && (needs.update.outputs.updated == 'true' || github.event_name != 'schedule') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Add prices file
+        run: |
+          git fetch --depth=1 origin data
+          mkdir -p public/data
+          git show FETCH_HEAD:prices.json > public/data/prices.json
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -43,20 +93,21 @@ jobs:
         run: npm ci
       - name: Build with Next.js
         run: npx --no-install next build
-        env:
-          # Optional. When set, the key is embedded in the public JS bundle; otherwise it is entered in the app.
-          NEXT_PUBLIC_METALS_API_KEY: ${{ secrets.METALS_API_KEY }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./out
 
   deploy:
+    needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    permissions:
+      pages: write
+      id-token: write
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

@@ -11,13 +11,13 @@ All metals, including copper, are priced per troy ounce.
 
 The browser never talks to metals.dev and never sees the API key. Instead:
 
-1. `.github/workflows/nextjs.yml` runs every 30 minutes. `scripts/update-prices.mjs` uses the `METALS_API_KEY` repository secret to fetch the latest prices, and merges them into a year of daily history.
+1. `.github/workflows/nextjs.yml` runs hourly. `scripts/update-prices.mjs` uses the `METALS_API_KEY` repository secret to fetch the latest prices, and merges them into a year of daily history.
 2. The result is saved as `prices.json` on the `data` branch. The branch is replaced with a single commit each run, since the file itself holds the history.
 3. The site is rebuilt with that file at `data/prices.json` and deployed to GitHub Pages. The page loads it and checks for a newer copy every 5 minutes while it's open.
 
 ### Request usage
 
-- Each run makes 1 `latest` request. Scheduled runs are skipped while the market is closed (Friday ~22:00 to Sunday ~22:00 UTC), so that's roughly 1,100 requests a month. That fits the Copper plan's 2,000.
+- Each run makes 1 `latest` request. Scheduled runs are skipped while the market is closed (Friday ~22:00 to Sunday ~22:00 UTC), so that's roughly 520 requests a month. With history, about 550-600 in total, well within the Copper plan's 2,000.
 - Daily history comes from the `timeseries` endpoint (30 days per request). The first run backfills a year (13 requests); after that it's about 1 request a day.
 - Usage doesn't depend on how many people or devices open the site.
 

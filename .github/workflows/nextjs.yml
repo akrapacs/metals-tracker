@@ -6,9 +6,9 @@ on:
   push:
     branches: ["main"]
 
-  # Every 30 minutes (~1,100 metals.dev requests/month); update-prices.mjs skips scheduled runs while the market is closed
+  # Hourly (~550-600 metals.dev requests/month); update-prices.mjs skips scheduled runs while the market is closed
   schedule:
-    - cron: "7,37 * * * *"
+    - cron: "7 * * * *"
 
   workflow_dispatch:
 
